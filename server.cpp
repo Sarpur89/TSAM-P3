@@ -144,10 +144,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   {
       extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
       int sock;
-      int portno;
       struct sockaddr_in sk_addr;
-
-      portno = argv[2];
 
       /* Create the socket. */
       sock = socket (PF_INET, SOCK_STREAM, 0);
@@ -161,7 +158,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
       sk_addr.sin_family      = AF_INET;
       sk_addr.sin_addr.s_addr = INADDR_ANY;
-      sk_addr.sin_port        = htons(portno);
+      sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
       init_sockaddr (&sk_addr, SERVERHOST, PORT);
