@@ -140,11 +140,14 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
      clients[clientSocket]->name = tokens[1];
   }
 
-  else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 2))
+  else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
   {
       extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
+      std::string hostname;
       int sock;
       struct sockaddr_in sk_addr;
+
+      hostname = tokens[1].c_str();
 
       /* Create the socket. */
       sock = socket (PF_INET, SOCK_STREAM, 0);
@@ -161,7 +164,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
-      init_sockaddr (&sk_addr, SERVERHOST, PORT);
+      init_sockaddr (&sk_addr, hostname, atoi(tokens[2].c_str()));
       if (connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr)) < 0)
       {
           perror ("Failed to connect to server!");
@@ -263,7 +266,7 @@ int main(int argc, char* argv[])
     // Setup socket for server to listen to
 
     listenSock = open_socket(atoi(argv[1]));
-    printf("Listening on port: %d\n", argv[1]);
+    printf("Listening on port: %s\n", argv[1]);
 
     if(listen(listenSock, BACKLOG) < 0)
     {
