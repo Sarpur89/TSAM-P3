@@ -161,13 +161,15 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       memset(&sk_addr, 0, sizeof(sk_addr));
 
       sk_addr.sin_family      = AF_INET;
-      sk_addr.sin_addr.s_addr = htons(atoi(tokens[1].c_str()));//INADDR_ANY;
-      sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
+      sk_addr.sin_addr.s_addr = INADDR_ANY;//htons(atoi(tokens[1].c_str()));
+      sk_addr.sin_port        = AI_PASSIVE;//htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
       //init_sockaddr (&sk_addr, hostname.c_str(), atoi(tokens[2].c_str()));
       if (connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr)) < 0)
       {
+          //int ple = connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr));
+          //printf("%d", ple);
           perror ("Failed to connect to server!");
           exit (EXIT_FAILURE);
       }
