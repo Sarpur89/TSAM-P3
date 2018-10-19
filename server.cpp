@@ -161,7 +161,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       memset(&sk_addr, 0, sizeof(sk_addr));
 
       sk_addr.sin_family      = AF_INET;
-      sk_addr.sin_addr.s_addr = INADDR_ANY;
+      sk_addr.sin_addr.s_addr = htons(atoi(tokens[1].c_str()));//INADDR_ANY;
       sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
