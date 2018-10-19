@@ -35,7 +35,7 @@ class Client
 {
   public:
     int sock;              // socket of client connection
-    std::string name;           // Limit length of name of client's user
+    std::string name;      // Limit length of name of client's user
 
     Client(int socket) : sock(socket){}
 
@@ -77,6 +77,7 @@ int open_socket(int portno)
       perror("Failed to set SO_REUSEADDR:");
    }
 
+   //Skoða þetta betur
    memset(&sk_addr, 0, sizeof(sk_addr));
 
    sk_addr.sin_family      = AF_INET;
@@ -142,7 +143,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
   {
-      extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
+      //extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
       std::string hostname;
       int sock;
       struct sockaddr_in sk_addr;
@@ -164,7 +165,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
-      init_sockaddr (&sk_addr, hostname, atoi(tokens[2].c_str()));
+      //init_sockaddr (&sk_addr, hostname.c_str(), atoi(tokens[2].c_str()));
       if (connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr)) < 0)
       {
           perror ("Failed to connect to server!");
