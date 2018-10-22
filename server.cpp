@@ -49,7 +49,9 @@ class Client
 // Quite often a simple array can be used as a lookup table,
 // (indexed on socket no.) sacrificing memory for speed.
 
-std::map<int, Client*> clients; // Lookup table for per Client information
+std::map<int, Client*> connected_clients; // Lookup table for per Client information
+//std::map<int, Server*> connected_servers;
+std::string my_name;
 
 // Open socket for specified port.
 //
@@ -84,7 +86,7 @@ int open_socket(int portno)
    sk_addr.sin_addr.s_addr = INADDR_ANY;
    sk_addr.sin_port        = htons(portno);
 
-   // Bind to socket to listen for connections from clients
+   // Bind to socket to listen for connections from connected_clients
 
    if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
    {
@@ -102,8 +104,8 @@ int open_socket(int portno)
 
 void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 {
-     // Remove client from the clients list
-     clients.erase(clientSocket);
+     // Remove client from the connected_clients list
+     connected_clients.erase(clientSocket);
 
      // If this client's socket is maxfds then the next lowest
      // one has to be determined. Socket fd's can be reused by the Kernel,
@@ -111,7 +113,7 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 
      if(*maxfds == clientSocket)
      {
-        for(auto const& p : clients)
+        for(auto const& p : connected_clients)
         {
             *maxfds = std::max(*maxfds, p.second->sock);
         }
@@ -124,7 +126,7 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 
 // Process command from client on the server
 
-int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
+int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
                   char *buffer)
 {
   std::vector<std::string> tokens;
@@ -136,9 +138,14 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   while(stream >> token)
       tokens.push_back(token);
 
+  if((tokens[0].compare("ID") == 0) && (tokens.size() == 1))
+  {
+      send(clientSocket, my_name.c_str(), my_name.length()-1, 0);
+  }
+
   if((tokens[0].compare("CONNECT") == 0) && (tokens.size() == 2))
   {
-     clients[clientSocket]->name = tokens[1];
+     connected_clients[clientSocket]->name = tokens[1];
   }
 
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
@@ -148,7 +155,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       int sock;
       struct sockaddr_in sk_addr;
 
-      hostname = tokens[1].c_str();
+      // hostname = tokens[1].c_str();
 
       /* Create the socket. */
       sock = socket (PF_INET, SOCK_STREAM, 0);
@@ -161,20 +168,17 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       memset(&sk_addr, 0, sizeof(sk_addr));
 
       sk_addr.sin_family      = AF_INET;
-      sk_addr.sin_addr.s_addr = INADDR_ANY;//htons(atoi(tokens[1].c_str()));
-      sk_addr.sin_port        = AI_PASSIVE;//htons(atoi(tokens[2].c_str()));
+      sk_addr.sin_addr.s_addr = htons(atoi(tokens[1].c_str()));
+      sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
 
       // Connect to the other server.
-      //init_sockaddr (&sk_addr, hostname.c_str(), atoi(tokens[2].c_str()));
       if (connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr)) < 0)
       {
-          //int ple = connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr));
-          //printf("%d", ple);
           perror ("Failed to connect to server!");
           exit (EXIT_FAILURE);
       }
 
-      // Bind to socket to listen for connections from clients
+      // Bind to socket to listen for connections from connected_clients
 
       if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
       {
@@ -190,7 +194,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   else if(tokens[0].compare("LEAVE") == 0)
   {
       // Close the socket, and leave the socket handling
-      // code to deal with tidying up clients etc. when
+      // code to deal with tidying up connected_clients etc. when
       // select() detects the OS has torn down the connection.
 
       closeClient(clientSocket, openSockets, maxfds);
@@ -200,7 +204,7 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
      std::cout << "Who is logged on" << std::endl;
      std::string msg;
 
-     for(auto const& names : clients)
+     for(auto const& names : connected_clients)
      {
         msg += names.second->name + ",";
      }
@@ -219,14 +223,14 @@ int clientCommand(int clientSocket, fd_set *openSockets, int *maxfds,
           msg += *i + " ";
       }
 
-      for(auto const& pair : clients)
+      for(auto const& pair : connected_clients)
       {
           send(pair.second->sock, msg.c_str(), msg.length(),0);
       }
   }
   else if(tokens[0].compare("MSG") == 0)
   {
-      for(auto const& pair : clients)
+      for(auto const& pair : connected_clients)
       {
           if(pair.second->name.compare(tokens[1]) == 0)
           {
@@ -258,7 +262,9 @@ int main(int argc, char* argv[])
     int maxfds;                     // Passed to select() as max fd in set
     struct sockaddr_in client;
     socklen_t clientLen;
-    char buffer[1025];              // buffer for reading from clients
+    char buffer[1025];              // buffer for reading from connected_clients
+
+    my_name = "V_group_10"; // Breyta alvöru númer
 
     if(argc != 2)
     {
@@ -309,7 +315,7 @@ int main(int argc, char* argv[])
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
 
-               clients[clientSock] = new Client(clientSock);
+               connected_clients[clientSock] = new Client(clientSock);
                n--;
 
                printf("Client connected on server: %d\n", clientSock);
@@ -317,7 +323,7 @@ int main(int argc, char* argv[])
             // Now check for commands from clients
             while(n-- > 0)
             {
-               for(auto const& pair : clients)
+               for(auto const& pair : connected_clients)
                {
                   Client *client = pair.second;
 
@@ -334,7 +340,7 @@ int main(int argc, char* argv[])
                       else
                       {
                           std::cout << buffer << std::endl;
-                          clientCommand(client->sock, &openSockets, &maxfds,
+                          inputCommand(client->sock, &openSockets, &maxfds,
                                         buffer);
                       }
                   }
