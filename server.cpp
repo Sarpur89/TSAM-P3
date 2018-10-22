@@ -182,7 +182,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   if((tokens[0].compare("ID") == 0) && (tokens.size() == 1))
   {
-      send(clientSocket, myName.c_str(), myName.length()-1, 0);
+      send(clientSocket, myName.c_str(), myName.length(), 0);
   }
 
   if((tokens[0].compare("CONNECT") == 0) && (tokens.size() == 2))
@@ -194,43 +194,49 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   {
       //extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
       std::string hostname;
-      int sock;
-      struct sockaddr_in sk_addr;
+      int sock, set = 1;
+      struct addrinfo sk_addr, *svr;
 
       // hostname = tokens[1].c_str();
 
       /* Create the socket. */
-      sock = socket (PF_INET, SOCK_STREAM, 0);
-      if (sock < 0)
+      sk_addr.ai_family   = AF_INET;            // IPv4 only addresses
+      sk_addr.ai_socktype = SOCK_STREAM;
+      sk_addr.ai_flags    = AI_PASSIVE;
+
+      memset(&sk_addr,   0, sizeof(sk_addr));
+
+      if(getaddrinfo(tokens[1].c_str(), tokens[2].c_str(), &sk_addr, &svr) != 0)
       {
-          perror ("Failed to create socket!");
-          exit (EXIT_FAILURE);
+          perror("getaddrinfo failed: ");
+          exit(0);
       }
 
-      memset(&sk_addr, 0, sizeof(sk_addr));
-
-      sk_addr.sin_family      = AF_INET;
-      sk_addr.sin_addr.s_addr = htons(atoi(tokens[1].c_str()));
-      sk_addr.sin_port        = htons(atoi(tokens[2].c_str()));
+      sock = socket(svr->ai_family, svr->ai_socktype, svr->ai_protocol);
 
       // Connect to the other server.
-      if (connect (sock, (struct sockaddr *) &sk_addr, sizeof (sk_addr)) < 0)
+      if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0)
       {
-          perror ("Failed to connect to server!");
-          exit (EXIT_FAILURE);
+          printf("Failed to set SO_REUSEADDR for port %s\n", tokens[2].c_str());
+          perror("setsockopt failed: ");
       }
 
-      // Bind to socket to listen for connections from clients
-
-      if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
+      if(connect(sock, svr->ai_addr, svr->ai_addrlen )< 0)
       {
-         perror("Failed to bind to socket: ");
-         return(-1);
+          printf("Failed to open socket to server: %s\n", tokens[1].c_str());
+          perror("Connect failed: ");
+          exit(0);
       }
+
       else
       {
          return(sock);
       }
+  }
+
+  else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
+  {
+      send(clientSocket, tokens[2].c_str(), myName.length()-1, 0);
   }
 
   else if(tokens[0].compare("LEAVE") == 0)
@@ -307,22 +313,24 @@ int main(int argc, char* argv[])
     socklen_t clientLen;
     char buffer[1025];              // buffer for reading from clients
 
-    myName = "V_group_10"; // Breyta alvöru númer
+    myName = "V_group_10";
 
     if(argc != 2)
     {
-        printf("Usage: chat_server <ip port>\n");
+        printf("Usage: chat_server <tcp port> <udp port> <client port>\n");
         exit(0);
     }
 
     // Setup TCP socket for server to listen to
 
     listenTCPSock = open_tcp_socket(atoi(argv[1]));
-    printf("Listening on port: %s\n", argv[1]);
+    printf("Listening on TCP port: %s\n", argv[1]);
+    //listenUDPSock = open_udp_socket(atoi(argv[2]));
+    //printf("Listening on UDP port: %s\n", argv[2]);
 
     if(listen(listenTCPSock, BACKLOG) < 0)
     {
-        printf("Listen failed on port %s\n", argv[1]);
+        printf("Listen failed on tcp port %s\n", argv[1]);
         exit(0);
     }
     else
