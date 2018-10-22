@@ -31,15 +31,15 @@
 // Simple class for handling connections from clients.
 //
 // Client(int socket) - socket to send/receive traffic from client.
-class Client
+class Node
 {
   public:
     int sock;              // socket of client connection
     std::string name;      // Limit length of name of client's user
 
-    Client(int socket) : sock(socket){}
+    Node(int socket) : sock(socket){}
 
-    ~Client(){}            // Virtual destructor defined for base class
+    ~Node(){}            // Virtual destructor defined for base class
 };
 
 // Note: map is not necessarily the most efficient method to use here,
@@ -49,15 +49,15 @@ class Client
 // Quite often a simple array can be used as a lookup table,
 // (indexed on socket no.) sacrificing memory for speed.
 
-std::map<int, Client*> connected_clients; // Lookup table for per Client information
+std::map<int, Node*> connected_clients; // Lookup table for per Node information
 //std::map<int, Server*> connected_servers;
-std::string my_name;
+std::string myName;
 
 // Open socket for specified port.
 //
 // Returns -1 if unable to create the socket for any reason.
 
-int open_socket(int portno)
+int open_tcp_socket(int portno)
 {
    struct sockaddr_in sk_addr;   // address settings for bind()
    int sock;                     // socket opened for this port
@@ -86,7 +86,49 @@ int open_socket(int portno)
    sk_addr.sin_addr.s_addr = INADDR_ANY;
    sk_addr.sin_port        = htons(portno);
 
-   // Bind to socket to listen for connections from connected_clients
+   // Bind to socket to listen for connections from clients
+
+   if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
+   {
+      perror("Failed to bind to socket:");
+      return(-1);
+   }
+   else
+   {
+      return(sock);
+   }
+}
+
+int open_udp_socket(int portno)
+{
+   struct sockaddr_in sk_addr;   // address settings for bind()
+   int sock;                     // socket opened for this port
+   int set = 1;                  // for setsockopt
+
+   // Create socket for connection
+
+   if((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
+   {
+      perror("Failed to open socket");
+      return(-1);
+   }
+
+   // Turn on SO_REUSEADDR to allow socket to be quickly reused after
+   // program exit.
+
+   if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0)
+   {
+      perror("Failed to set SO_REUSEADDR:");
+   }
+
+   //Skoða þetta betur
+   memset(&sk_addr, 0, sizeof(sk_addr));
+
+   sk_addr.sin_family      = AF_INET;
+   sk_addr.sin_addr.s_addr = INADDR_ANY;
+   sk_addr.sin_port        = htons(portno);
+
+   // Bind to socket to listen for connections from clients
 
    if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
    {
@@ -140,7 +182,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   if((tokens[0].compare("ID") == 0) && (tokens.size() == 1))
   {
-      send(clientSocket, my_name.c_str(), my_name.length()-1, 0);
+      send(clientSocket, myName.c_str(), myName.length()-1, 0);
   }
 
   if((tokens[0].compare("CONNECT") == 0) && (tokens.size() == 2))
@@ -178,7 +220,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
           exit (EXIT_FAILURE);
       }
 
-      // Bind to socket to listen for connections from connected_clients
+      // Bind to socket to listen for connections from clients
 
       if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
       {
@@ -254,7 +296,8 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 int main(int argc, char* argv[])
 {
     bool finished;
-    int listenSock;                 // Socket for connections to server
+    int listenTCPSock;              // Socket for TCP connections to server
+    int listenUDPSock;              // Socket for UDP connections to server
     int clientSock;                 // Socket of connecting client
     fd_set openSockets;             // Current open sockets
     fd_set readSockets;             // Socket list for select()
@@ -262,9 +305,9 @@ int main(int argc, char* argv[])
     int maxfds;                     // Passed to select() as max fd in set
     struct sockaddr_in client;
     socklen_t clientLen;
-    char buffer[1025];              // buffer for reading from connected_clients
+    char buffer[1025];              // buffer for reading from clients
 
-    my_name = "V_group_10"; // Breyta alvöru númer
+    myName = "V_group_10"; // Breyta alvöru númer
 
     if(argc != 2)
     {
@@ -272,12 +315,12 @@ int main(int argc, char* argv[])
         exit(0);
     }
 
-    // Setup socket for server to listen to
+    // Setup TCP socket for server to listen to
 
-    listenSock = open_socket(atoi(argv[1]));
+    listenTCPSock = open_tcp_socket(atoi(argv[1]));
     printf("Listening on port: %s\n", argv[1]);
 
-    if(listen(listenSock, BACKLOG) < 0)
+    if(listen(listenTCPSock, BACKLOG) < 0)
     {
         printf("Listen failed on port %s\n", argv[1]);
         exit(0);
@@ -285,8 +328,8 @@ int main(int argc, char* argv[])
     else
     // Add listen socket to socket set
     {
-        FD_SET(listenSock, &openSockets);
-        maxfds = listenSock;
+        FD_SET(listenTCPSock, &openSockets);
+        maxfds = listenTCPSock;
     }
 
     finished = false;
@@ -307,15 +350,15 @@ int main(int argc, char* argv[])
         else
         {
             // Accept  any new connections to the server
-            if(FD_ISSET(listenSock, &readSockets))
+            if(FD_ISSET(listenTCPSock, &readSockets))
             {
-               clientSock = accept(listenSock, (struct sockaddr *)&client,
+               clientSock = accept(listenTCPSock, (struct sockaddr *)&client,
                                    &clientLen);
 
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
 
-               connected_clients[clientSock] = new Client(clientSock);
+               connected_clients[clientSock] = new Node(clientSock);
                n--;
 
                printf("Client connected on server: %d\n", clientSock);
@@ -325,7 +368,7 @@ int main(int argc, char* argv[])
             {
                for(auto const& pair : connected_clients)
                {
-                  Client *client = pair.second;
+                  Node *client = pair.second;
 
                   if(FD_ISSET(client->sock, &readSockets))
                   {
