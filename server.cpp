@@ -67,7 +67,7 @@ int open_tcp_socket(int portno)
 
    if((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
    {
-      perror("Failed to open socket");
+      perror("Failed to open TCP socket");
       return(-1);
    }
 
@@ -107,9 +107,9 @@ int open_udp_socket(int portno)
 
    // Create socket for connection
 
-   if((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
+   if((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
    {
-      perror("Failed to open socket");
+      perror("Failed to open UDP socket");
       return(-1);
    }
 
