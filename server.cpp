@@ -58,7 +58,7 @@ class Node
 
 // Er nauðsynlegt að hafa tvö maps? Hugmyndin er að hafa eitt fyrir client of eitt fyrir servera, en tengingarnar eru í raun alveg eins (AFAIK)...
 //std::map<int, Node*> connected_clients; // Lookup table for per Node information
-std::map<int, Server*> connected_servers;
+std::map<int, Node*> connected_servers;
 
 std::string myName; // Global breyta fyrir nafn hópsins.
 
