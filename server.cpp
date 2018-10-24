@@ -38,7 +38,7 @@ class Node
 
     std::string name;      // Limit length of name of client's user
 
-    // Næstu tvær línur bætti ég inn til að gefa meiri möguleika í flokkun server-a í connected_clients. Óþarft? Betra að útfæra á annan hátt?
+    // Næstu tvær línur bætti ég inn til að gefa meiri möguleika í flokkun server-a í connected_servers. Óþarft? Betra að útfæra á annan hátt?
     std::string host_ip;
     unsigned short port;
 
@@ -57,8 +57,8 @@ class Node
 // (indexed on socket no.) sacrificing memory for speed.
 
 // Er nauðsynlegt að hafa tvö maps? Hugmyndin er að hafa eitt fyrir client of eitt fyrir servera, en tengingarnar eru í raun alveg eins (AFAIK)...
-std::map<int, Node*> connected_clients; // Lookup table for per Node information
-//std::map<int, Server*> connected_servers;
+//std::map<int, Node*> connected_clients; // Lookup table for per Node information
+std::map<int, Server*> connected_servers;
 
 std::string myName; // Global breyta fyrir nafn hópsins.
 
@@ -102,6 +102,7 @@ int open_tcp_socket(int portno)
       perror("Failed to bind to socket:");
       return(-1);
    }
+
    else
    {
       return(sock);
@@ -156,8 +157,8 @@ int open_udp_socket(int portno)
 
 void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 {
-     // Remove client from the connected_clients list
-     connected_clients.erase(clientSocket);
+     // Remove client from the connected_servers list
+     connected_servers.erase(clientSocket);
 
      // If this client's socket is maxfds then the next lowest
      // one has to be determined. Socket fd's can be reused by the Kernel,
@@ -165,7 +166,7 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 
      if(*maxfds == clientSocket)
      {
-        for(auto const& p : connected_clients)
+        for(auto const& p : connected_servers)
         {
             *maxfds = std::max(*maxfds, p.second->sock);
         }
@@ -198,7 +199,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   if((tokens[0].compare("CONNECT") == 0) && (tokens.size() == 2))
   {
-     connected_clients[clientSocket]->name = tokens[1];
+     connected_servers[clientSocket]->name = tokens[1];
   }
 
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
@@ -249,7 +250,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   {
       std::cout << "The connected servers are: " << std::endl;
       std::string msg;
-      for(auto const& names : connected_clients) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_clients.
+      for(auto const& names : connected_servers) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_servers.
       {
          msg += names.second->name + ",";
          msg += names.second->host_ip + ",";
@@ -269,7 +270,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
     // en held að það sé betra að útfæra það síðar). Veit ekki af hverju það virkar ekki...
   else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
   {
-      for(auto const& pair : connected_clients)
+      for(auto const& pair : connected_servers)
       {
           if(pair.second->port == stoi(tokens[1]))
           {
@@ -283,7 +284,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   else if(tokens[0].compare("LEAVE") == 0)
   {
       // Close the socket, and leave the socket handling
-      // code to deal with tidying up connected_clients etc. when
+      // code to deal with tidying up connected_servers etc. when
       // select() detects the OS has torn down the connection.
 
       closeClient(clientSocket, openSockets, maxfds);
@@ -293,7 +294,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
      std::cout << "Who is logged on" << std::endl;
      std::string msg;
 
-     for(auto const& names : connected_clients)
+     for(auto const& names : connected_servers)
      {
         msg += names.second->name + ",";
      }
@@ -312,14 +313,14 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
           msg += *i + " ";
       }
 
-      for(auto const& pair : connected_clients)
+      for(auto const& pair : connected_servers)
       {
           send(pair.second->sock, msg.c_str(), msg.length(),0);
       }
   }
   else if(tokens[0].compare("MSG") == 0)
   {
-      for(auto const& pair : connected_clients)
+      for(auto const& pair : connected_servers)
       {
           if(pair.second->name.compare(tokens[1]) == 0)
           {
@@ -407,11 +408,11 @@ int main(int argc, char* argv[])
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
 
-               connected_clients[clientSock] = new Node(clientSock);
+               connected_servers[clientSock] = new Node(clientSock);
 
                // Er það sem er hér fyrir neðan nauðsynlegt (næstu tvær línur)?
-               connected_clients[clientSock]->host_ip = client.sin_addr.s_addr;
-               connected_clients[clientSock]->port = client.sin_port;
+               connected_servers[clientSock]->host_ip = client.sin_addr.s_addr;
+               connected_servers[clientSock]->port = client.sin_port;
 
                n--;
 
@@ -420,7 +421,7 @@ int main(int argc, char* argv[])
             // Now check for commands from clients
             while(n-- > 0)
             {
-               for(auto const& pair : connected_clients)
+               for(auto const& pair : connected_servers)
                {
                   Node *client = pair.second;
 
