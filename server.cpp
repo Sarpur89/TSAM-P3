@@ -35,9 +35,16 @@ class Node
 {
   public:
     int sock;              // socket of client connection
+
     std::string name;      // Limit length of name of client's user
 
-    Node(int socket) : sock(socket){}
+    // Næstu tvær línur bætti ég inn til að gefa meiri möguleika í flokkun server-a í connected_clients. Óþarft? Betra að útfæra á annan hátt?
+    std::string host_ip;
+    unsigned short port;
+
+    Node(int socket) :
+
+    sock(socket){}
 
     ~Node(){}            // Virtual destructor defined for base class
 };
@@ -49,9 +56,11 @@ class Node
 // Quite often a simple array can be used as a lookup table,
 // (indexed on socket no.) sacrificing memory for speed.
 
+// Er nauðsynlegt að hafa tvö maps? Hugmyndin er að hafa eitt fyrir client of eitt fyrir servera, en tengingarnar eru í raun alveg eins (AFAIK)...
 std::map<int, Node*> connected_clients; // Lookup table for per Node information
 //std::map<int, Server*> connected_servers;
-std::string myName;
+
+std::string myName; // Global breyta fyrir nafn hópsins.
 
 // Open socket for specified port.
 //
@@ -99,6 +108,7 @@ int open_tcp_socket(int portno)
    }
 }
 
+// Er nauðsynlegt að hafa heilt nýtt fall fyrir UDP tengingar?
 int open_udp_socket(int portno)
 {
    struct sockaddr_in sk_addr;   // address settings for bind()
@@ -180,6 +190,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   while(stream >> token)
       tokens.push_back(token);
 
+  // ID virkar
   if((tokens[0].compare("ID") == 0) && (tokens.size() == 1))
   {
       send(clientSocket, myName.c_str(), myName.length(), 0);
@@ -234,11 +245,41 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       }
   }
 
-  else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
+  else if(tokens[0].compare("LISTSERVERS") == 0)
   {
-      send(clientSocket, tokens[2].c_str(), myName.length()-1, 0);
+      std::cout << "The connected servers are: " << std::endl;
+      std::string msg;
+      for(auto const& names : connected_clients) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_clients.
+      {
+         msg += names.second->name + ",";
+         msg += names.second->host_ip + ",";
+         msg += names.second->port + ",";
+         msg += ";";
+      }
+      send(clientSocket, msg.c_str(), msg.length()-1, 0); // Mínus einn til að losna við síðustu kommuna.
   }
 
+  // Til að sjá ef server getur tekið við skipunum.
+  else if(tokens[0].compare("TEST") == 0)
+  {
+      printf("Test command recieved, over!\n");
+  }
+
+ /* // CMD virkar ekki. Ég er að reyna að tengja með port númeri (ég veit að það á að vera username,
+    // en held að það sé betra að útfæra það síðar). Veit ekki af hverju það virkar ekki...
+  else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
+  {
+      for(auto const& pair : connected_clients)
+      {
+          if(pair.second->port == stoi(tokens[1]))
+          {
+              std::string msg;
+              send(pair.second->sock, msg.c_str(), msg.length(),0);
+          }
+          printf("Failed to send to socket: %s\n", tokens[1].c_str());
+      }
+  }
+*/
   else if(tokens[0].compare("LEAVE") == 0)
   {
       // Close the socket, and leave the socket handling
@@ -367,6 +408,11 @@ int main(int argc, char* argv[])
                maxfds = std::max(maxfds, clientSock);
 
                connected_clients[clientSock] = new Node(clientSock);
+
+               // Er það sem er hér fyrir neðan nauðsynlegt (næstu tvær línur)?
+               connected_clients[clientSock]->host_ip = client.sin_addr.s_addr;
+               connected_clients[clientSock]->port = client.sin_port;
+
                n--;
 
                printf("Client connected on server: %d\n", clientSock);
