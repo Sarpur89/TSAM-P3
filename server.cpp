@@ -266,7 +266,8 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       printf("Test command recieved, over!\n");
   }
 
- /* // CMD virkar ekki. Ég er að reyna að tengja með port númeri (ég veit að það á að vera username,
+ /* // CMD virkar ekki. Ég er að reyna að tengja með port númeri
+       (ég veit að það á að vera username,
     // en held að það sé betra að útfæra það síðar). Veit ekki af hverju það virkar ekki...
   else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
   {
@@ -402,6 +403,10 @@ int main(int argc, char* argv[])
             // Accept  any new connections to the server
             if(FD_ISSET(listenTCPSock, &readSockets))
             {
+              //Ekki nota accept, það hangir
+              //Select er main shit
+              //Setja í FD_SET til að kalla á select
+              //2 maps, eitt fyrir clients og 1 fyrir servers
                clientSock = accept(listenTCPSock, (struct sockaddr *)&client,
                                    &clientLen);
 
