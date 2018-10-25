@@ -25,6 +25,8 @@
 #include <sstream>
 #include <thread>
 #include <map>
+#include <assert.h>
+#include <fcntl.h>
 
 #define BACKLOG  5          // Allowed length of queue of waiting connections
 
@@ -65,6 +67,15 @@ std::string myName; // Global breyta fyrir nafn hópsins.
 // Open socket for specified port.
 //
 // Returns -1 if unable to create the socket for any reason.
+
+void set_nonblocking(int socket)
+{
+  int flags;
+  flags = fcntl(socket, F_GETFL, 0);
+  assert(flags != -1);
+  fcntl(socket, F_SETFL, flags | O_NONBLOCK);
+  printf("Mammaþín\n");
+}
 
 int open_tcp_socket(int portno)
 {
@@ -409,6 +420,8 @@ int main(int argc, char* argv[])
               //2 maps, eitt fyrir clients og 1 fyrir servers
                clientSock = accept(listenTCPSock, (struct sockaddr *)&client,
                                    &clientLen);
+
+               set_nonblocking(clientSock);
 
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
