@@ -26,7 +26,8 @@
 #include <thread>
 #include <map>
 #include <assert.h>
-#include <fcntl.h>
+#include <fcntl.h> // delet?
+#include <sys/ioctl.h>
 
 #define BACKLOG  5          // Allowed length of queue of waiting connections
 
@@ -68,13 +69,10 @@ std::string myName; // Global breyta fyrir nafn hópsins.
 //
 // Returns -1 if unable to create the socket for any reason.
 
-void set_nonblocking(int socket)
+void set_nonblocking(int filedes) // A function to set a socket in non-blocking mode.
 {
-  int flags;
-  flags = fcntl(socket, F_GETFL, 0);
-  assert(flags != -1);
-  fcntl(socket, F_SETFL, flags | O_NONBLOCK);
-  printf("Mammaþín\n");
+  int opt = 1;
+  ioctl(filedes, FIONBIO, &filedes);
 }
 
 int open_tcp_socket(int portno)
@@ -120,7 +118,7 @@ int open_tcp_socket(int portno)
    }
 }
 
-// Er nauðsynlegt að hafa heilt nýtt fall fyrir UDP tengingar?
+// Not implemented.
 int open_udp_socket(int portno)
 {
    struct sockaddr_in sk_addr;   // address settings for bind()
@@ -215,12 +213,9 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
   {
-      //extern void init_sockaddr (struct sockaddr_in *name, const char *hostname, uint16_t port);
-      std::string hostname;
       int sock, set = 1;
       struct addrinfo sk_addr, *svr;
 
-      // hostname = tokens[1].c_str();
 
       /* Create the socket. */
       sk_addr.ai_family   = AF_INET;            // IPv4 only addresses
@@ -357,7 +352,7 @@ int main(int argc, char* argv[])
 {
     bool finished;
     int listenTCPSock;              // Socket for TCP connections to server
-    int listenUDPSock;              // Socket for UDP connections to server
+    //int listenUDPSock;              // Socket for UDP connections to server
     int clientSock;                 // Socket of connecting client
     fd_set openSockets;             // Current open sockets
     fd_set readSockets;             // Socket list for select()
