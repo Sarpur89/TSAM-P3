@@ -69,10 +69,11 @@ std::string myName; // Global breyta fyrir nafn hópsins.
 //
 // Returns -1 if unable to create the socket for any reason.
 
-void set_nonblocking(int filedes) // A function to set a socket in non-blocking mode.
+int set_nonblocking(int sock) // A function to set a socket in non-blocking mode.
 {
   int opt = 1;
-  ioctl(filedes, FIONBIO, &filedes);
+  ioctl(sock, FIONBIO, &opt);
+  return sock;
 }
 
 int open_tcp_socket(int portno)
@@ -87,6 +88,12 @@ int open_tcp_socket(int portno)
    {
       perror("Failed to open TCP socket");
       return(-1);
+   }
+
+   if(set_nonblocking(sock) < 0)
+   {
+      perror("Failed to make non-blocking!");
+      exit(1);
    }
 
    // Turn on SO_REUSEADDR to allow socket to be quickly reused after
@@ -114,6 +121,7 @@ int open_tcp_socket(int portno)
 
    else
    {
+      set_nonblocking(sock);
       return(sock);
    }
 }
