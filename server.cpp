@@ -69,6 +69,28 @@ std::string myName; // Global breyta fyrir nafn hópsins.
 //
 // Returns -1 if unable to create the socket for any reason.
 
+void listenOtherServer(int socket)
+{
+    int nread;                                  // Bytes read from socket
+    char buffer[1025];                          // Buffer for reading input
+
+    while(true)
+    {
+       memset(buffer, 0, sizeof(buffer));
+       nread = read(socket, buffer, sizeof(buffer));
+
+       if(nread < 0)                      // Server has dropped us
+       {
+          printf("Over and Out\n");
+          exit(0);
+       }
+       else if(nread > 0)
+       {
+          printf("%s\n", buffer);
+       }
+    }
+}
+
 int set_nonblocking(int sock) // A function to set a socket in non-blocking mode.
 {
   int opt = 1;
@@ -221,7 +243,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
   {
-      int sock, set = 1;
+      int sock, set = 1, count = 1;
       struct addrinfo sk_addr, *svr;
 
 
@@ -256,7 +278,14 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
 
       else
       {
-         return(sock);
+        /*
+          Node myNode = new Node();
+          myNode->name = "Palli";
+          myNode->host_ip = "123.4.5.6";
+          myNode->port = 1234;
+          connected_servers.insert(std::pair<int, Node*>(count, myNode));  //Þarf að skoða þetta betur
+          */
+          return(sock);
       }
   }
 
@@ -264,14 +293,23 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   {
       std::cout << "The connected servers are: " << std::endl;
       std::string msg;
-      for(auto const& names : connected_servers) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_servers.
+      if(connected_servers.empty())
       {
-         msg += names.second->name + ",";
-         msg += names.second->host_ip + ",";
-         msg += names.second->port + ",";
-         msg += ";";
+          printf("List is empty");
+          exit(0);
       }
-      send(clientSocket, msg.c_str(), msg.length()-1, 0); // Mínus einn til að losna við síðustu kommuna.
+      else
+      {
+        for(auto const& names : connected_servers) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_servers.
+        {
+           msg += names.second->name + ",";
+           msg += names.second->host_ip + ",";
+           msg += names.second->port + ",";
+           msg += ";";
+        }
+        std::cout << msg << std::endl;
+        send(clientSocket, msg.c_str(), msg.length()-1, 0); // Mínus einn til að losna við síðustu kommuna.
+      }
   }
 
   // Til að sjá ef server getur tekið við skipunum.
@@ -397,6 +435,8 @@ int main(int argc, char* argv[])
         maxfds = listenTCPSock;
     }
 
+    //std::thread serverThread(listenOtherServer, listenTCPSock);
+
     finished = false;
 
     while(!finished)
@@ -423,8 +463,6 @@ int main(int argc, char* argv[])
               //2 maps, eitt fyrir clients og 1 fyrir servers
                clientSock = accept(listenTCPSock, (struct sockaddr *)&client,
                                    &clientLen);
-
-               set_nonblocking(clientSock);
 
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
