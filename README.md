@@ -42,8 +42,15 @@ Step 6: Profit.
 * **Gautur Arnar Guðjónsson**
 * **Kristján Ingólfsson**
 
+## Notes
+
+We tried to implement what we could but the instructions were a bit vague. It was hard to get into the assignment
+and it was a bit on the heavy side and it was hard to get help when you are really lost overall. We had another 
+large assignment due for another class that was due on friday 26th October. That assignment was worth 20% of the 
+final grade and a grade of 5 was needed to pass the course.
+
 ## Acknowledgments
 
-* We worked closely with group **VANTAR HÓP NAFN**, Hinrik Helgason and Benedikt Þorri Þórarinsson.
+* We worked closely with group **V_GROUP-65**, Hinrik Helgason and Benedikt Þorri Þórarinsson.
 
 

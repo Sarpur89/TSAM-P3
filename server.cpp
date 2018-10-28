@@ -1,9 +1,4 @@
-//
-// Simple chat server for TSAM-409
-//
-// Command line: ./chat_server 4000
-//
-// Author: Jacky Mallett (jacky@ru.is)
+// Author: V_GROUP_10
 //
 #include <stdio.h>
 #include <errno.h>
@@ -20,20 +15,16 @@
 #include <algorithm>
 #include <map>
 #include <vector>
-
 #include <iostream>
 #include <sstream>
 #include <thread>
 #include <map>
 #include <assert.h>
-#include <fcntl.h> // delet?
+#include <fcntl.h>
 #include <sys/ioctl.h>
 
 #define BACKLOG  5          // Allowed length of queue of waiting connections
 
-// Simple class for handling connections from clients.
-//
-// Client(int socket) - socket to send/receive traffic from client.
 class Node
 {
   public:
@@ -41,7 +32,6 @@ class Node
 
     std::string name;      // Limit length of name of client's user
 
-    // Næstu tvær línur bætti ég inn til að gefa meiri möguleika í flokkun server-a í connected_servers. Óþarft? Betra að útfæra á annan hátt?
     std::string host_ip;
     unsigned short port;
 
@@ -52,34 +42,26 @@ class Node
     ~Node(){}            // Virtual destructor defined for base class
 };
 
-// Note: map is not necessarily the most efficient method to use here,
-// especially for a server with large numbers of simulataneous connections,
-// where performance is also expected to be an issue.
-//
-// Quite often a simple array can be used as a lookup table,
-// (indexed on socket no.) sacrificing memory for speed.
-
-// Er nauðsynlegt að hafa tvö maps? Hugmyndin er að hafa eitt fyrir client of eitt fyrir servera, en tengingarnar eru í raun alveg eins (AFAIK)...
-//std::map<int, Node*> connected_clients; // Lookup table for per Node information
 std::map<int, Node*> connected_servers;
 
-std::string myName; // Global breyta fyrir nafn hópsins.
+int mapSize = 0;
+
+std::string myName; // Global variable for the groups name
 
 // Open socket for specified port.
 //
 // Returns -1 if unable to create the socket for any reason.
-
 void listenOtherServer(int socket)
 {
-    int nread;                                  // Bytes read from socket
-    char buffer[1025];                          // Buffer for reading input
+    int nread;             // Bytes read from socket
+    char buffer[1025];     // Buffer for reading input
 
     while(true)
     {
        memset(buffer, 0, sizeof(buffer));
        nread = read(socket, buffer, sizeof(buffer));
 
-       if(nread < 0)                      // Server has dropped us
+       if(nread < 0)        // Server has dropped us
        {
           printf("Over and Out\n");
           exit(0);
@@ -91,7 +73,8 @@ void listenOtherServer(int socket)
     }
 }
 
-int set_nonblocking(int sock) // A function to set a socket in non-blocking mode.
+// A function to set a socket in non-blocking mode.
+int set_nonblocking(int sock)
 {
   int opt = 1;
   ioctl(sock, FIONBIO, &opt);
@@ -105,7 +88,6 @@ int open_tcp_socket(int portno)
    int set = 1;                  // for setsockopt
 
    // Create socket for connection
-
    if((sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) < 0)
    {
       perror("Failed to open TCP socket");
@@ -120,13 +102,11 @@ int open_tcp_socket(int portno)
 
    // Turn on SO_REUSEADDR to allow socket to be quickly reused after
    // program exit.
-
    if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0)
    {
       perror("Failed to set SO_REUSEADDR:");
    }
 
-   //Skoða þetta betur
    memset(&sk_addr, 0, sizeof(sk_addr));
 
    sk_addr.sin_family      = AF_INET;
@@ -134,7 +114,6 @@ int open_tcp_socket(int portno)
    sk_addr.sin_port        = htons(portno);
 
    // Bind to socket to listen for connections from clients
-
    if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
    {
       perror("Failed to bind to socket:");
@@ -148,7 +127,7 @@ int open_tcp_socket(int portno)
    }
 }
 
-// Not implemented.
+//Does not work, would have been used to establish a UDP connection
 int open_udp_socket(int portno)
 {
    struct sockaddr_in sk_addr;   // address settings for bind()
@@ -156,7 +135,6 @@ int open_udp_socket(int portno)
    int set = 1;                  // for setsockopt
 
    // Create socket for connection
-
    if((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
    {
       perror("Failed to open UDP socket");
@@ -165,13 +143,11 @@ int open_udp_socket(int portno)
 
    // Turn on SO_REUSEADDR to allow socket to be quickly reused after
    // program exit.
-
    if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) < 0)
    {
       perror("Failed to set SO_REUSEADDR:");
    }
 
-   //Skoða þetta betur
    memset(&sk_addr, 0, sizeof(sk_addr));
 
    sk_addr.sin_family      = AF_INET;
@@ -179,7 +155,6 @@ int open_udp_socket(int portno)
    sk_addr.sin_port        = htons(portno);
 
    // Bind to socket to listen for connections from clients
-
    if(bind(sock, (struct sockaddr *)&sk_addr, sizeof(sk_addr)) < 0)
    {
       perror("Failed to bind to socket:");
@@ -191,13 +166,28 @@ int open_udp_socket(int portno)
    }
 }
 
+//We were trying to use this function in collaboration with KEEPALIVE
+void send_message_to_all()
+{
+    std::string msg;
+    msg = "I'm still here!";
+    while(true)
+    {
+        for(auto const& pair : connected_servers)
+        {
+            send(pair.second->sock, msg.c_str(), msg.length(),0);
+        }
+        sleep(60);
+    }
+}
+
 // Close a client's connection, remove it from the client list, and
 // tidy up select sockets afterwards.
-
 void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
 {
      // Remove client from the connected_servers list
      connected_servers.erase(clientSocket);
+     mapSize--;
 
      // If this client's socket is maxfds then the next lowest
      // one has to be determined. Socket fd's can be reused by the Kernel,
@@ -212,12 +202,10 @@ void closeClient(int clientSocket, fd_set *openSockets, int *maxfds)
      }
 
      // And remove from the list of open sockets.
-
      FD_CLR(clientSocket, openSockets);
 }
 
 // Process command from client on the server
-
 int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
                   char *buffer)
 {
@@ -230,7 +218,6 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   while(stream >> token)
       tokens.push_back(token);
 
-  // ID virkar
   if((tokens[0].compare("ID") == 0) && (tokens.size() == 1))
   {
       send(clientSocket, myName.c_str(), myName.length(), 0);
@@ -282,23 +269,28 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
           u_short portNo;
           struct sockaddr_in *sin = (struct sockaddr_in *) svr->ai_addr;
           char ipAddress[INET_ADDRSTRLEN];
+          inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
           std::string ipString(ipAddress);
           portNo = htons(sin->sin_port);
-          inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
 
+          //Adding a new node and taking the info from the server being connected
           Node *myNode = new Node(sock);
           myNode->host_ip = ipString;
           myNode->port = portNo;
-          connected_servers.insert(std::pair<int, Node*>(sizeof(connected_servers) + 1, myNode));  //Þarf að skoða þetta betur
-          
+          mapSize++;
+          connected_servers.insert(std::pair<int, Node*>(mapSize, myNode));
+
           return(sock);
       }
   }
 
+  //Does not work, we wanted to print out a the info about the servers that we
+  //wanted to store in a Map. This would then send the list to the server.
   else if(tokens[0].compare("LISTSERVERS") == 0)
   {
       std::cout << "The connected servers are: " << std::endl;
       std::string msg;
+      //Checks if the Map is empty
       if(connected_servers.empty())
       {
           printf("List is empty");
@@ -306,7 +298,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       }
       else
       {
-        for(auto const& names : connected_servers) // Á að skeyta saman: Hóp_nafn,IP_tala,Port_númer; á öllum connections í connected_servers.
+        for(auto const& names : connected_servers) 
         {
            msg += names.second->name + ",";
            msg += names.second->host_ip + ",";
@@ -314,35 +306,19 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
            msg += ";";
         }
         std::cout << msg << std::endl;
-        send(clientSocket, msg.c_str(), msg.length()-1, 0); // Mínus einn til að losna við síðustu kommuna.
+        send(clientSocket, msg.c_str(), msg.length()-1, 0);
       }
   }
 
-  // Til að sjá ef server getur tekið við skipunum.
-  else if(tokens[0].compare("TEST") == 0)
+  //Does not work, we tried to make it work so that a tread would open when the command is called
+  //and a function is called that sets a timer within a loop and sends a message to servers after 
+  //the timer finished
+  else if(tokens[0].compare("KEEPALIVE") == 0)
   {
-      for(auto it = connected_servers.cbegin(); it != connected_servers.cend(); ++it)
-          {
-              std::cout << it->second->port << " " << it->second->host_ip << std::endl;
-          }
+      thread intervalThread;
+      pthread_create(&intervalThread, NULL, send_message_to_all);
   }
 
- /* // CMD virkar ekki. Ég er að reyna að tengja með port númeri
-       (ég veit að það á að vera username,
-    // en held að það sé betra að útfæra það síðar). Veit ekki af hverju það virkar ekki...
-  else if(tokens[0].compare("CMD") == 0 && (tokens.size() == 3))
-  {
-      for(auto const& pair : connected_servers)
-      {
-          if(pair.second->port == stoi(tokens[1]))
-          {
-              std::string msg;
-              send(pair.second->sock, msg.c_str(), msg.length(),0);
-          }
-          printf("Failed to send to socket: %s\n", tokens[1].c_str());
-      }
-  }
-*/
   else if(tokens[0].compare("LEAVE") == 0)
   {
       // Close the socket, and leave the socket handling
@@ -421,7 +397,7 @@ int main(int argc, char* argv[])
 
     if(argc != 2)
     {
-        printf("Usage: chat_server <tcp port> <udp port> <client port>\n");
+        printf("Usage: chat_server <tcp port>\n");
         exit(0);
     }
 
@@ -445,6 +421,7 @@ int main(int argc, char* argv[])
     }
 
     //std::thread serverThread(listenOtherServer, listenTCPSock);
+    //Thread used to print messages from other servers
 
     finished = false;
 
