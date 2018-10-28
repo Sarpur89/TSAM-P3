@@ -280,21 +280,17 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       {
           // Extracting ip address and port number from sk_addr
           u_short portNo;
-          struct sockaddr_in *sin = (struct sockaddr_in *) svr-> ai_addr;
+          struct sockaddr_in *sin = (struct sockaddr_in *) svr->ai_addr;
           char ipAddress[INET_ADDRSTRLEN];
-          portNo = sin->sin_port;
+          std::string ipString(ipAddress);
+          portNo = htons(sin->sin_port);
           inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
 
-          printf("The ip address of the new connection is: %s\n", ipAddress);
-          printf("The port number of the new connection is: %d\n", portNo);
-
-        /*
-          Node myNode = new Node();
-          myNode->name = "Palli";
-          myNode->host_ip = "123.4.5.6";
-          myNode->port = 1234;
-          connected_servers.insert(std::pair<int, Node*>(count, myNode));  //Þarf að skoða þetta betur
-          */
+          Node *myNode = new Node(sock);
+          myNode->host_ip = ipString;
+          myNode->port = portNo;
+          connected_servers.insert(std::pair<int, Node*>(sizeof(connected_servers) + 1, myNode));  //Þarf að skoða þetta betur
+          
           return(sock);
       }
   }
@@ -325,7 +321,10 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
   // Til að sjá ef server getur tekið við skipunum.
   else if(tokens[0].compare("TEST") == 0)
   {
-      printf("Test command recieved, over!\n");
+      for(auto it = connected_servers.cbegin(); it != connected_servers.cend(); ++it)
+          {
+              std::cout << it->second->port << " " << it->second->host_ip << std::endl;
+          }
   }
 
  /* // CMD virkar ekki. Ég er að reyna að tengja með port númeri
@@ -472,6 +471,8 @@ int main(int argc, char* argv[])
 
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
+
+               connected_servers[clientSock] = new Node(clientSock);
 
                n--;
 
