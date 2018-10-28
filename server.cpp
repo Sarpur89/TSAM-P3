@@ -279,14 +279,14 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       else
       {
           // Extracting ip address and port number from sk_addr
-          u_short portNO;
+          u_short portNo;
           struct sockaddr_in *sin = (struct sockaddr_in *) svr-> ai_addr;
           char ipAddress[INET_ADDRSTRLEN];
-          portNo = sin.
+          portNo = sin->sin_port;
           inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
 
           printf("The ip address of the new connection is: %s\n", ipAddress);
-          printf("The port number of the new connection is: %d\n", sin->sin_port);
+          printf("The port number of the new connection is: %d\n", portNo);
 
         /*
           Node myNode = new Node();
