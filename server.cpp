@@ -44,7 +44,7 @@ class Node
 
 std::map<int, Node*> connected_servers;
 
-int mapSize = 0;
+int mapSize = 0; //Global variable that stores the number of servers in the connected_servers map
 
 std::string myName; // Global variable for the groups name
 
@@ -228,6 +228,8 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
      connected_servers[clientSocket]->name = tokens[1];
   }
 
+  //A command used for establishing a connection between the server connected
+  //to the client and other servers.
   else if((tokens[0].compare("CONNECT_OTHER") == 0) && (tokens.size() == 3))
   {
       int sock, set = 1, count = 1;
@@ -298,6 +300,7 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       }
       else
       {
+        //A loop used to construct the ID of any connected servers
         for(auto const& names : connected_servers) 
         {
            msg += names.second->name + ",";
@@ -393,7 +396,7 @@ int main(int argc, char* argv[])
     socklen_t clientLen;
     char buffer[1025];              // buffer for reading from clients
 
-    myName = "V_group_10";
+    myName = "V_group_10";         //The name of our group/server
 
     if(argc != 2)
     {
@@ -405,8 +408,8 @@ int main(int argc, char* argv[])
 
     listenTCPSock = open_tcp_socket(atoi(argv[1]));
     printf("Listening on TCP port: %s\n", argv[1]);
-    //listenUDPSock = open_udp_socket(atoi(argv[2]));
-    //printf("Listening on UDP port: %s\n", argv[2]);
+    //If we would have gotten so far as to implement a UDP connection we would
+    //have put in another operation similar to the one above, passing in argv[2].
 
     if(listen(listenTCPSock, BACKLOG) < 0)
     {
