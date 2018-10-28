@@ -279,8 +279,10 @@ int inputCommand(int clientSocket, fd_set *openSockets, int *maxfds,
       else
       {
           // Extracting ip address and port number from sk_addr
+          u_short portNO;
           struct sockaddr_in *sin = (struct sockaddr_in *) svr-> ai_addr;
           char ipAddress[INET_ADDRSTRLEN];
+          portNo = sin.
           inet_ntop(AF_INET, &(sin->sin_addr), ipAddress, INET_ADDRSTRLEN);
 
           printf("The ip address of the new connection is: %s\n", ipAddress);
@@ -465,21 +467,11 @@ int main(int argc, char* argv[])
             // Accept  any new connections to the server
             if(FD_ISSET(listenTCPSock, &readSockets))
             {
-              //Ekki nota accept, það hangir
-              //Select er main shit
-              //Setja í FD_SET til að kalla á select
-              //2 maps, eitt fyrir clients og 1 fyrir servers
                clientSock = accept(listenTCPSock, (struct sockaddr *)&client,
                                    &clientLen);
 
                FD_SET(clientSock, &openSockets);
                maxfds = std::max(maxfds, clientSock);
-
-               connected_servers[clientSock] = new Node(clientSock);
-
-               // Er það sem er hér fyrir neðan nauðsynlegt (næstu tvær línur)?
-               connected_servers[clientSock]->host_ip = client.sin_addr.s_addr;
-               connected_servers[clientSock]->port = client.sin_port;
 
                n--;
 
